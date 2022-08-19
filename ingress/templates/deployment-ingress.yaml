@@ -26,7 +26,7 @@ limitations under the License.
 {{- $serviceAccountName := printf "%s-%s" .Release.Name "ingress" }}
 {{ tuple $envAll "ingress" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
-apiVersion: rbac.authorization.k8s.io/v1
+apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
   name: {{ $serviceAccountName }}
@@ -65,7 +65,6 @@ rules:
       - patch
   - apiGroups:
       - "extensions"
-      - "networking.k8s.io"
     resources:
       - ingresses
     verbs:
@@ -74,13 +73,12 @@ rules:
       - watch
   - apiGroups:
       - "extensions"
-      - "networking.k8s.io"
     resources:
       - ingresses/status
     verbs:
       - update
 ---
-apiVersion: rbac.authorization.k8s.io/v1
+apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
   name: {{ $serviceAccountName }}
@@ -93,7 +91,7 @@ subjects:
     name: {{ $serviceAccountName }}
     namespace: {{ $envAll.Release.Namespace }}
 ---
-apiVersion: rbac.authorization.k8s.io/v1
+apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
 metadata:
   name: {{ $serviceAccountName }}
@@ -132,7 +130,7 @@ rules:
       - create
       - update
 ---
-apiVersion: rbac.authorization.k8s.io/v1
+apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
 metadata:
   name: {{ $serviceAccountName }}
@@ -214,7 +212,7 @@ spec:
 {{- if .Values.network.host_namespace }}
       hostNetwork: true
 {{- end }}
-      dnsPolicy: {{ .Values.pod.dns_policy }}
+      dnsPolicy: "ClusterFirstWithHostNet"
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.server.timeout | default "60" }}
       initContainers:
 {{ tuple $envAll "ingress" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}

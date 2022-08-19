@@ -42,16 +42,12 @@ spec:
         configmap-etc-hash: {{ tuple "configmap-conf.yaml" . | include "helm-toolkit.utils.hash" }}
 {{ dict "envAll" $envAll "podName" "ingress-error-pages" "containerNames" (list "init" "ingress-error-pages") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 8 }}
     spec:
-{{ dict "envAll" $envAll "application" "error_pages" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       shareProcessNamespace: true
       serviceAccountName: {{ $serviceAccountName }}
       affinity:
 {{ tuple $envAll "ingress" "error-pages" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
         {{ .Values.labels.error_server.node_selector_key }}: {{ .Values.labels.error_server.node_selector_value | quote }}
-{{ if $envAll.Values.pod.tolerations.ingress.enabled }}
-{{ tuple $envAll "ingress" | include "helm-toolkit.snippets.kubernetes_tolerations" | indent 6 }}
-{{ end }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.error_pages.timeout | default "60" }}
       initContainers:
 {{ tuple $envAll "error_pages" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
@@ -59,7 +55,6 @@ spec:
         - name: ingress-error-pages
 {{ tuple $envAll "error_pages" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.error_pages | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
-{{ dict "envAll" $envAll "application" "error_pages" "container" "ingress_error_pages" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           livenessProbe:
             httpGet:
               path: /healthz
@@ -69,10 +64,23 @@ spec:
             timeoutSeconds: 5
           ports:
             - containerPort: 8080
+          command:
+            - /tmp/ingress-error-pages.sh
+            - start
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /tmp/ingress-error-pages.sh
+                  - stop
           volumeMounts:
-            - name: pod-tmp
-              mountPath: /tmp
+            - name: ingress-bin
+              mountPath: /tmp/ingress-error-pages.sh
+              subPath: ingress-error-pages.sh
+              readOnly: true
       volumes:
-        - name: pod-tmp
-          emptyDir: {}
+      - name: ingress-bin
+        configMap:
+          name: ingress-bin
+          defaultMode: 0555
 {{- end }}
